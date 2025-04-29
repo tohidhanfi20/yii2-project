@@ -82,3 +82,13 @@
           --network appnet \
           tohidazure/yii2-app:latest
       ignore_errors: yes
+
+    - name: Ensure Node Exporter is running for monitoring
+      docker_container:
+        name: node-exporter
+        image: quay.io/prometheus/node-exporter:latest
+        state: started
+        restart_policy: always
+        network_mode: host
+        pid_mode: host
+       detach: true
