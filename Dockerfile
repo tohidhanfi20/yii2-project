@@ -22,6 +22,9 @@ WORKDIR /var/www/html
 # Copy composer files first for better Docker cache
 COPY src/composer.json src/composer.lock ./
 
+# Allow the Yii2 Composer plugin
+RUN composer config --no-plugins allow-plugins.yiisoft/yii2-composer true
+
 # Install dependencies
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader
 
