@@ -69,6 +69,12 @@
         name: nginx
         state: restarted
 
+    - name: Ensure Docker Swarm overlay network 'appnet' exists
+      shell: docker network create --driver overlay appnet
+      register: create_network
+      failed_when: create_network.rc != 0 and 'already exists' not in create_network.stderr
+      changed_when: "'already exists' not in create_network.stderr"
+
     - name: Deploy Yii2 app as Swarm service
       shell: |
         docker service create --name yii2-app \
