@@ -1,4 +1,4 @@
-- hosts: all
+- hosts: web
   become: yes
   vars:
     docker_user: ubuntu
