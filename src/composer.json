@@ -1,0 +1,12 @@
+{
+    "name": "minimal/yii2-app-basic",
+    "require": {
+        "yiisoft/yii2": "~2.0.47"
+    },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://asset-packagist.org"
+        }
+    ]
+}
