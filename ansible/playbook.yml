@@ -224,7 +224,7 @@
     - name: Wait for service health check
       shell: |
         for i in $(seq 1 6); do
-          if docker service ls | grep yii2-app | grep -q "2/2"; then
+          if docker service ls | grep yii2-app | grep -q "1/1"; then
             exit 0
           fi
           sleep 2
