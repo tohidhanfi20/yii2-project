@@ -28,6 +28,9 @@ RUN composer config --no-plugins allow-plugins.yiisoft/yii2-composer true
 # Install dependencies
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader
 
+# Install Prometheus PHP client
+RUN composer require endclothing/prometheus_client_php
+
 # Copy the rest of the Yii2 app
 COPY src/ /var/www/html/
 

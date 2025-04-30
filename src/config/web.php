@@ -34,6 +34,13 @@ $config = [
         ],
         // Comment out DB if you don't have db.php
         // 'db' => require __DIR__ . '/db.php',
+        'urlManager' => [
+            'enablePrettyUrl' => true,
+            'showScriptName' => false,
+            'rules' => [
+                'metrics' => 'metrics/index',
+            ],
+        ],
     ],
     'params' => [],
 ];
