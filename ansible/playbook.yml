@@ -133,6 +133,7 @@
         docker service update 
         --image tohidazure/yii2-app:{{ app_version }}
         --replicas 1
+        --publish-add 9000:9000
         yii2-app
       when: service_check.stdout != ""
 
