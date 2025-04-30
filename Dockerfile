@@ -34,8 +34,7 @@ COPY src/ /var/www/html/
 # Set permissions (adjust as needed for your environment)
 RUN chown -R www-data:www-data /var/www/html
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:9000 || exit 1
+HEALTHCHECK CMD pidof php-fpm || exit 1
 
 EXPOSE 9000
 
