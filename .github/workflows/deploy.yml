@@ -72,7 +72,11 @@ jobs:
         ansible-playbook -i ansible/inventory.ini ansible/playbook.yml \
           --user ${{ secrets.EC2_USER }} \
           --private-key <(echo "${{ secrets.SSH_PRIVATE_KEY }}") \
-          -e "APP_VERSION=${{ env.VERSION }} PREVIOUS_VERSION=${{ env.PREVIOUS_VERSION }} GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
+          -e "APP_VERSION=${{ env.VERSION }} \
+              PREVIOUS_VERSION=${{ env.PREVIOUS_VERSION }} \
+              GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }} \
+              docker_registry_username=${{ secrets.DOCKER_USERNAME }} \
+              docker_registry_password=${{ secrets.DOCKER_PASSWORD }}"
 
     - name: Verify deployment
       run: |
