@@ -2,7 +2,12 @@
   become: yes
   vars:
     docker_user: ubuntu
+    app_version: "{{ lookup('env', 'APP_VERSION') | default('latest', true) }}"
+    previous_version: "{{ lookup('env', 'PREVIOUS_VERSION') | default('') }}"
+    deploy_success_file: "/tmp/deploy_success"
+
   tasks:
+    # System Setup
     - name: Install required packages
       apt:
         name:
@@ -15,6 +20,7 @@
         state: present
         update_cache: yes
 
+    # Docker Installation
     - name: Install Docker
       shell: |
         curl -fsSL https://get.docker.com -o get-docker.sh
@@ -43,10 +49,12 @@
         enabled: yes
         state: started
 
+    # Docker Swarm Setup
     - name: Initialize Docker Swarm
       shell: docker swarm init
       ignore_errors: yes
 
+    # NGINX Setup
     - name: Copy NGINX config
       copy:
         src: ../nginx/yii2.conf
@@ -69,21 +77,63 @@
         name: nginx
         state: restarted
 
+    # Docker Networks
     - name: Ensure Docker Swarm overlay network 'appnet' exists
       shell: docker network create --driver overlay appnet
       register: create_network
       failed_when: create_network.rc != 0 and 'already exists' not in create_network.stderr
       changed_when: "'already exists' not in create_network.stderr"
 
-    - name: Deploy Yii2 app as Swarm service
-      shell: |
-        docker service create --name yii2-app \
-          --publish 9000:9000 \
-          --network appnet \
-          tohidazure/yii2-app:latest
+    - name: Create monitoring network
+      docker_network:
+        name: monitoring
+        driver: bridge
+        state: present
+
+    # Application Deployment
+    - name: Check if service exists
+      command: docker service ls --filter name=yii2-app -q
+      register: service_check
+      changed_when: false
       ignore_errors: yes
 
-    - name: Ensure Node Exporter is running for monitoring
+    - name: Get current service version
+      shell: docker service inspect --format '{{ '{{' }} index .Spec.TaskTemplate.ContainerSpec.Image {{ '}}' }}' yii2-app || echo ""
+      register: current_version
+      when: service_check.stdout != ""
+      ignore_errors: yes
+
+    - name: Create or update Docker service
+      block:
+        - name: Create new Docker service if it doesn't exist
+          command: >
+            docker service create 
+            --name yii2-app 
+            --network appnet 
+            --publish 9000:9000
+            --replicas 2
+            --health-cmd "curl -f http://localhost:9000/health || exit 1"
+            --health-interval 30s
+            --health-timeout 10s
+            --health-retries 3
+            --update-delay 30s
+            --update-parallelism 1
+            --update-failure-action rollback
+            tohidazure/yii2-app:{{ app_version }}
+          when: service_check.stdout == ""
+
+        - name: Update existing Docker service
+          command: >
+            docker service update 
+            --image tohidazure/yii2-app:{{ app_version }}
+            --update-delay 30s
+            --update-parallelism 1
+            --update-failure-action rollback
+            yii2-app
+          when: service_check.stdout != ""
+
+    # Monitoring Setup - Node Exporter
+    - name: Deploy Node Exporter
       docker_container:
         name: node-exporter
         image: quay.io/prometheus/node-exporter:latest
@@ -91,4 +141,102 @@
         restart_policy: always
         network_mode: host
         pid_mode: host
-       detach: true
+        volumes:
+          - /proc:/host/proc:ro
+          - /sys:/host/sys:ro
+          - /:/rootfs:ro
+        command:
+          - '--path.procfs=/host/proc'
+          - '--path.sysfs=/host/sys'
+          - '--path.rootfs=/rootfs'
+          - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+
+    # Prometheus Setup
+    - name: Create Prometheus config directory
+      file:
+        path: /etc/prometheus
+        state: directory
+        mode: '0755'
+
+    - name: Create Prometheus data directory
+      file:
+        path: /var/lib/prometheus
+        state: directory
+        mode: '0755'
+
+    - name: Create Prometheus configuration
+      copy:
+        content: |
+          global:
+            scrape_interval: 15s
+            evaluation_interval: 15s
+
+          scrape_configs:
+            - job_name: 'node_exporter'
+              static_configs:
+                - targets: ['localhost:9100']
+            
+            - job_name: 'yii2_app'
+              static_configs:
+                - targets: ['localhost:9000']
+        dest: /etc/prometheus/prometheus.yml
+        mode: '0644'
+
+    - name: Deploy Prometheus
+      docker_container:
+        name: prometheus
+        image: prom/prometheus:latest
+        state: started
+        restart_policy: always
+        ports:
+          - "9090:9090"
+        volumes:
+          - /etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+          - /var/lib/prometheus:/prometheus
+        command:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus'
+          - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+          - '--web.console.templates=/usr/share/prometheus/consoles'
+        networks:
+          - name: monitoring
+
+    # Grafana Setup
+    - name: Deploy Grafana
+      docker_container:
+        name: grafana
+        image: grafana/grafana:latest
+        state: started
+        restart_policy: always
+        ports:
+          - "3000:3000"
+        volumes:
+          - grafana-storage:/var/lib/grafana
+        networks:
+          - name: monitoring
+        env:
+          GF_SECURITY_ADMIN_PASSWORD: "{{ lookup('env', 'GRAFANA_ADMIN_PASSWORD') | default('admin', true) }}"
+
+    # Deployment Verification
+    - name: Wait for service health check
+      shell: |
+        for i in $(seq 1 30); do
+          if docker service ls | grep yii2-app | grep -q "2/2"; then
+            exit 0
+          fi
+          sleep 10
+        done
+        exit 1
+      register: health_check
+      ignore_errors: yes
+
+    - name: Mark deployment as successful
+      copy:
+        content: "{{ app_version }}"
+        dest: "{{ deploy_success_file }}"
+      when: health_check is success
+
+    # Deployment Status
+    - name: Display deployment status
+      debug:
+        msg: "Deployment Status: {{ 'Success' if health_check is success else 'Failed' }}"
