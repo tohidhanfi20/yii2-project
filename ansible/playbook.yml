@@ -219,18 +219,7 @@
           - name: monitoring
         env:
           GF_SECURITY_ADMIN_PASSWORD: "{{ lookup('env', 'GRAFANA_ADMIN_PASSWORD') | default('admin', true) }}"
-
-    # Deployment Verification
-   # - name: Wait for service health check
-    #  shell: |
-     #   echo "Deployment successful!"
-      #  exit 0
-
-   # - name: Mark deployment as successful
-    #     content: "{{ app_version }}"
-    #    dest: "{{ deploy_success_file }}"
-
-    # Deployment Status
+          
     - name: Display deployment status
       debug:
         msg: "Deployment Status: Success"
