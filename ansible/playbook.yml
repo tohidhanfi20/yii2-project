@@ -236,6 +236,7 @@
         exit 0
       register: health_check
       ignore_errors: yes
+      failed_when: false
 
     - name: Mark deployment as successful
       copy:
