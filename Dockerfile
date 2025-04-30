@@ -38,4 +38,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:9000 || exit 1
 
 EXPOSE 9000
-CMD ["php-fpm"]
+
+# The important fix: run php-fpm in the foreground
+CMD ["php-fpm", "-F"]
