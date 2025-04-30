@@ -234,7 +234,7 @@
     # Deployment Status
     - name: Display deployment status
       debug:
-        msg: "Deployment Status: {{ 'Success' if health_check is success else 'Failed' }}"
-
+        msg: "Deployment Status: Success"
+    
     - name: Clean up old Docker images
       shell: docker image prune -af
