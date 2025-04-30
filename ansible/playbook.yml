@@ -230,7 +230,6 @@
       copy:
         content: "{{ app_version }}"
         dest: "{{ deploy_success_file }}"
-      when: health_check is success
 
     # Deployment Status
     - name: Display deployment status
