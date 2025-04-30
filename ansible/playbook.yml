@@ -5,6 +5,8 @@
     app_version: "{{ lookup('env', 'APP_VERSION') | default('latest', true) }}"
     previous_version: "{{ lookup('env', 'PREVIOUS_VERSION') | default('') }}"
     deploy_success_file: "/tmp/deploy_success"
+    docker_registry_username: your-username
+    docker_registry_password: your-password
 
   tasks:
     # System Setup
@@ -104,6 +106,13 @@
       register: current_version
       when: service_check.stdout != ""
       ignore_errors: yes
+
+    - name: Log into private registry
+      docker_login:
+        registry: your-registry-url
+        username: "{{ docker_registry_username }}"
+        password: "{{ docker_registry_password }}"
+      no_log: true
 
     - name: Create Docker service if it doesn't exist
       command: >
