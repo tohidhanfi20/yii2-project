@@ -105,34 +105,30 @@
       when: service_check.stdout != ""
       ignore_errors: yes
 
-    - name: Create or update Docker service
-      block:
-        - name: Create new Docker service if it doesn't exist
-          command: >
-            docker service create 
-            --name yii2-app 
-            --network appnet 
-            --publish 9000:9000
-            --replicas 2
-            --health-cmd "curl -f http://localhost:9000/health || exit 1"
-            --health-interval 30s
-            --health-timeout 10s
-            --health-retries 3
-            --update-delay 30s
-            --update-parallelism 1
-            --update-failure-action rollback
-            tohidazure/yii2-app:{{ app_version }}
-          when: service_check.stdout == ""
+    - name: Create Docker service if it doesn't exist
+      command: >
+        docker service create 
+        --name yii2-app 
+        --network appnet 
+        --publish 9000:9000
+        --replicas 2
+        --health-cmd "pidof php-fpm || exit 1"
+        --health-interval 30s
+        --health-timeout 10s
+        --health-retries 3
+        --update-delay 30s
+        --update-parallelism 1
+        tohidazure/yii2-app:{{ app_version }}
+      when: service_check.stdout == ""
 
-        - name: Update existing Docker service
-          command: >
-            docker service update 
-            --image tohidazure/yii2-app:{{ app_version }}
-            --update-delay 30s
-            --update-parallelism 1
-            --update-failure-action rollback
-            yii2-app
-          when: service_check.stdout != ""
+    - name: Update Docker service if it exists
+      command: >
+        docker service update 
+        --image tohidazure/yii2-app:{{ app_version }}
+        --update-delay 30s
+        --update-parallelism 1
+        yii2-app
+      when: service_check.stdout != ""
 
     # Monitoring Setup - Node Exporter
     - name: Deploy Node Exporter
