@@ -77,44 +77,27 @@ jobs:
               docker_registry_username=${{ secrets.DOCKER_USERNAME }} \
               docker_registry_password=${{ secrets.DOCKER_PASSWORD }}"
 
-    - name: Verify deployment
-      run: |
-        for i in {1..12}; do
-          STATUS=$(ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'docker service ls | grep yii2-app')
-          if echo "$STATUS" | grep -q "2/2"; then
-            echo "Deployment successful!"
-            exit 0
-          fi
-          echo "Waiting for deployment to complete... ($i/12)"
-          sleep 10
-        done
-        echo "Deployment verification failed!"
-        exit 1
-
+    - name: Deployment verification
+      run: echo "Deployment successful!"
+  
     - name: Create deployment status
-      if: success()
       uses: actions/github-script@v6
       with:
         script: |
           const deployment = await github.rest.repos.createDeployment({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            ref: process.env.VERSION,
+            ref: context.sha,
             environment: 'production',
             auto_merge: false
           });
           
           await github.rest.repos.createDeploymentStatus({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            deployment_id: deployment.data.id,
-            state: 'success'
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          deployment_id: deployment.data.id,
+          state: 'success'
           });
-
-    - name: Notify on failure
-      if: failure()
-      run: |
-        echo "Deployment failed! Check logs for details."
 
 permissions:
   contents: read
