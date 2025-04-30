@@ -64,17 +64,17 @@ jobs:
         scp -r ansible/* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/deployment/
         scp -r nginx/* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/deployment/
 
-    - name: Run Ansible playbook on remote host
+    - name: Run Ansible playbook from runner
       env:
         ANSIBLE_HOST_KEY_CHECKING: false
         APP_VERSION: ${{ env.VERSION }}
         PREVIOUS_VERSION: ${{ env.PREVIOUS_VERSION }}
+        GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
       run: |
-        ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "cd ~/deployment && \
-        ANSIBLE_HOST_KEY_CHECKING=false \
-        APP_VERSION=${{ env.VERSION }} \
-        PREVIOUS_VERSION=${{ env.PREVIOUS_VERSION }} \
-        ansible-playbook -i inventory.ini playbook.yml"
+        ansible-playbook -i ansible/inventory.ini ansible/playbook.yml \
+          --user ${{ secrets.EC2_USER }} \
+          --private-key <(echo "${{ secrets.SSH_PRIVATE_KEY }}") \
+          -e "APP_VERSION=${{ env.VERSION }} PREVIOUS_VERSION=${{ env.PREVIOUS_VERSION }} GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
 
     - name: Verify deployment
       run: |
