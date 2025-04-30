@@ -125,8 +125,7 @@
       command: >
         docker service update 
         --image tohidazure/yii2-app:{{ app_version }}
-        --update-delay 30s
-        --update-parallelism 1
+        --replicas 1
         yii2-app
       when: service_check.stdout != ""
 
@@ -238,3 +237,6 @@
     - name: Display deployment status
       debug:
         msg: "Deployment Status: {{ 'Success' if health_check is success else 'Failed' }}"
+
+    - name: Clean up old Docker images
+      shell: docker image prune -af
